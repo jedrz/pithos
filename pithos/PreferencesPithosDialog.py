@@ -39,7 +39,6 @@ configfilename = os.path.join(config_home, 'pithos.ini')
 
 class PreferencesPithosDialog(Gtk.Dialog):
     __gtype_name__ = "PreferencesPithosDialog"
-    prefernces = {}
 
     def __init__(self):
         """__init__ - This function is typically not called directly.
@@ -73,6 +72,16 @@ class PreferencesPithosDialog(Gtk.Dialog):
         audio_quality_combo.pack_start(render_text, True)
         audio_quality_combo.add_attribute(render_text, "text", 1)
 
+        # initialize proxy type combo box
+        proxy_type_combo = self.builder.get_object('prefs_proxy_type')
+        proxy_type_store = Gtk.ListStore(GObject.TYPE_STRING, GObject.TYPE_STRING)
+        for x in [('http', "HTTP proxy"), ('socks', "SOCKS proxy")]:
+            proxy_type_store.append(x)
+        proxy_type_combo.set_model(proxy_type_store)
+        proxy_type_renderer = Gtk.CellRendererText()
+        proxy_type_combo.pack_start(proxy_type_renderer, 1)
+        proxy_type_combo.add_attribute(proxy_type_renderer, 'text', 1)
+
         self.__load_preferences()
 
 
@@ -91,6 +100,7 @@ class PreferencesPithosDialog(Gtk.Dialog):
             "y_pos": None,
             "notify":True,
             "last_station_id":None,
+            "proxy_type":'',
             "proxy":'',
             "control_proxy":'',
             "control_proxy_pac":'',
@@ -197,17 +207,20 @@ class PreferencesPithosDialog(Gtk.Dialog):
             self.builder.get_object('prefs_control_proxy_pac').set_sensitive(False)
             self.builder.get_object('prefs_control_proxy_pac').set_tooltip_text("Please install python-pacparser")
 
-        audio_quality_combo = self.builder.get_object('prefs_audio_quality')
-        for row in audio_quality_combo.get_model():
-            if row[0] == self.__preferences["audio_quality"]:
-                audio_quality_combo.set_active_iter(row.iter)
-                break
+        self._set_combo_from_setting(self.builder.get_object('prefs_audio_quality'), self.__preferences["audio_quality"])
+        self._set_combo_from_setting(self.builder.get_object('prefs_proxy_type'), self.__preferences["proxy_type"])
 
         self.builder.get_object('checkbutton_notify').set_active(self.__preferences["notify"])
         self.builder.get_object('checkbutton_screensaverpause').set_active(self.__preferences["enable_screensaverpause"])
         self.builder.get_object('checkbutton_icon').set_active(self.__preferences["show_icon"])
 
         self.lastfm_auth = LastFmAuth(self.__preferences, "lastfm_key", self.builder.get_object('lastfm_btn'))
+
+    def _set_combo_from_setting(self, combo, setting):
+        for row in combo.get_model():
+            if row[0] == setting:
+                combo.set_active_iter(row.iter)
+                break
 
     def ok(self, widget, data=None):
         """ok - The user has elected to save the changes.
@@ -224,12 +237,19 @@ class PreferencesPithosDialog(Gtk.Dialog):
         self.__preferences["enable_screensaverpause"] = self.builder.get_object('checkbutton_screensaverpause').get_active()
         self.__preferences["show_icon"] = self.builder.get_object('checkbutton_icon').get_active()
 
+        # FIXME: obsłużyć NONE
         audio_quality = self.builder.get_object('prefs_audio_quality')
-        active_idx = audio_quality.get_active()
-        if active_idx != -1: # ignore unknown format
-            self.__preferences["audio_quality"] = audio_quality.get_model()[active_idx][0]
+        self.__preferences["audio_quality"] = self._get_combo_value(audio_quality)
+
+        proxy_type = self.builder.get_object('prefs_proxy_type')
+        self.__preferences["proxy_type"] = self._get_combo_value(proxy_type)
 
         self.save()
+
+    def _get_combo_value(self, combo):
+        active_idx = combo.get_active()
+        if active_idx != -1:    # ignore unknown format
+            return combo.get_model()[active_idx][0]
 
     def cancel(self, widget, data=None):
         """cancel - The user has elected cancel changes.

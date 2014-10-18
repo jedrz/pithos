@@ -4,6 +4,9 @@ pylast
 # notify
 pync
 
+# socks proxy
+PySocks
+
 # mediakeys
 pyobjc-core
 pyobjc-framework-Cocoa

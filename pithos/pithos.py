@@ -46,7 +46,7 @@ else:
 sys.path.insert(0, os.path.dirname(fullPath))
 
 from . import AboutPithosDialog, PreferencesPithosDialog, StationsDialog
-from .util import parse_proxy, open_browser
+from .util import parse_proxy, open_browser, SocksiPyHandler
 from .pithosconfig import get_ui_file, get_media_file, VERSION
 from .gobject_worker import GObjectWorker
 from .plugin import load_plugins
@@ -323,7 +323,8 @@ class PithosWindow(Gtk.ApplicationWindow):
     def get_proxy(self):
         """ Get HTTP proxy, first trying preferences then system proxy """
 
-        if self.preferences['proxy']:
+        # Looks like gst works only with http proxies.
+        if self.preferences['proxy_type'] == 'http' and self.preferences['proxy']:
             return self.preferences['proxy']
 
         system_proxies = urllib.request.getproxies()
@@ -340,19 +341,42 @@ class PithosWindow(Gtk.ApplicationWindow):
         # If neither option is set, urllib2.build_opener uses urllib.getproxies()
         # by default
 
-        handlers = []
+        import socks
+
+        def build_http_proxy_handler(proxy):
+            return urllib.request.ProxyHandler({'http': proxy, 'https': proxy})
+
+        def build_socks_proxy_handler(proxy):
+            _, username, password, hostport = parse_proxy(proxy)
+            hostport_list = hostport.split(':')
+            host = hostport_list[0]
+            port = int(hostport_list[1]) if len(hostport_list) > 1 else None
+            return SocksiPyHandler(socks.SOCKS5, host, port,
+                                   username=username, password=password)
+
         global_proxy = self.preferences['proxy']
+        control_proxy = self.preferences['control_proxy']
+        control_proxy_pac = self.preferences['control_proxy_pac']
+        is_socks_proxy_type = self.preferences['proxy_type'] == 'socks'
+        build_proxy_handler = build_socks_proxy_handler \
+                              if is_socks_proxy_type \
+                              else build_http_proxy_handler
+
+        import socket
+        socks.set_default_proxy(socks.SOCKS5, "localhost")
+        socket.socket = socks.socksocket
+
+        handlers = []
         if global_proxy:
-            handlers.append(urllib.request.ProxyHandler({'http': global_proxy, 'https': global_proxy}))
+            handlers.append(build_proxy_handler(global_proxy))
+        print(handlers)
         global_opener = urllib.request.build_opener(*handlers)
         urllib.request.install_opener(global_opener)
 
         control_opener = global_opener
-        control_proxy = self.preferences['control_proxy']
-        control_proxy_pac = self.preferences['control_proxy_pac']
 
         if control_proxy:
-            control_opener = urllib.request.build_opener(urllib.request.ProxyHandler({'http': control_proxy, 'https': control_proxy}))
+            control_opener = urllib.request.build_opener(build_proxy_handler(control_proxy))
 
         elif control_proxy_pac and pacparser_imported:
             pacparser.init()
@@ -364,10 +388,12 @@ class PithosWindow(Gtk.ApplicationWindow):
                     logging.warning('Failed to parse PAC.')
             try:
                 proxies = pacparser.find_proxy("http://pandora.com", "pandora.com").split(";")
+                proxy_pattern = "SOCKS (.*)" if is_socks_proxy_type else "PROXY (.*)"
                 for proxy in proxies:
-                    match = re.search("PROXY (.*)", proxy)
+                    match = re.search(proxy_pattern, proxy)
                     if match:
                         control_proxy = match.group(1)
+                        control_opener = urllib.request.build_opener(build_proxy_handler(control_proxy))
                         break
             except:
                 logging.warning('Failed to find proxy via PAC.')
@@ -375,7 +401,7 @@ class PithosWindow(Gtk.ApplicationWindow):
         elif control_proxy_pac and not pacparser_imported:
             logging.warning("Disabled proxy auto-config support because python-pacparser module was not found.")
 
-        self.worker_run('set_url_opener', (control_opener,))
+        self.worker_run('set_url_opener', (global_opener,))
 
     def set_audio_quality(self):
         self.worker_run('set_audio_quality', (self.preferences['audio_quality'],))
