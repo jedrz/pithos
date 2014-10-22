@@ -34,6 +34,13 @@ try:
 except ImportError:
     logging.info("Could not import python-pacparser.")
 
+socks_imported = False
+try:
+    import socks
+    socks_imported = True
+except ImportError:
+    pass
+
 config_home = GLib.get_user_config_dir()
 configfilename = os.path.join(config_home, 'pithos.ini')
 

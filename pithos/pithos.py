@@ -63,6 +63,13 @@ try:
 except ImportError:
     pass
 
+socks_imported = False
+try:
+    import socks
+    socks_imported = True
+except ImportError:
+    pass
+
 def buttonMenu(button, menu):
     def cb(button):
         allocation = button.get_allocation()
@@ -341,8 +348,6 @@ class PithosWindow(Gtk.ApplicationWindow):
         # If neither option is set, urllib2.build_opener uses urllib.getproxies()
         # by default
 
-        import socks
-
         def build_http_proxy_handler(proxy):
             return urllib.request.ProxyHandler({'http': proxy, 'https': proxy})
 
@@ -357,19 +362,14 @@ class PithosWindow(Gtk.ApplicationWindow):
         global_proxy = self.preferences['proxy']
         control_proxy = self.preferences['control_proxy']
         control_proxy_pac = self.preferences['control_proxy_pac']
-        is_socks_proxy_type = self.preferences['proxy_type'] == 'socks'
+        is_socks_proxy_type = socks_imported and self.preferences['proxy_type'] == 'socks'
         build_proxy_handler = build_socks_proxy_handler \
-                              if is_socks_proxy_type \
-                              else build_http_proxy_handler
-
-        import socket
-        socks.set_default_proxy(socks.SOCKS5, "localhost")
-        socket.socket = socks.socksocket
+            if is_socks_proxy_type \
+            else build_http_proxy_handler
 
         handlers = []
         if global_proxy:
             handlers.append(build_proxy_handler(global_proxy))
-        print(handlers)
         global_opener = urllib.request.build_opener(*handlers)
         urllib.request.install_opener(global_opener)
 

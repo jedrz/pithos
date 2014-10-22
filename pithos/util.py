@@ -21,8 +21,6 @@ import urllib.request
 import http.client
 import ssl
 
-import socks
-
 def parse_proxy(proxy):
     """ _parse_proxy from urllib """
     scheme, r_scheme = splittype(proxy)
@@ -55,6 +53,7 @@ class SocksiPyConnection(http.client.HTTPConnection):
         super().__init__(*args, **kwargs)
 
     def connect(self):
+        import socks
         self.sock = socks.socksocket()
         self.sock.setproxy(*self.proxy_args)
         if type(self.timeout) in (int, float):
@@ -68,6 +67,7 @@ class SocksiPyConnectionS(http.client.HTTPSConnection):
         super().__init__(*args, **kwargs)
 
     def connect(self):
+        import socks
         sock = socks.socksocket()
         sock.setproxy(*self.proxy_args)
         if type(self.timeout) in (int, float):
