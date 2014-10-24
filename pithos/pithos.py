@@ -331,7 +331,7 @@ class PithosWindow(Gtk.ApplicationWindow):
         """ Get HTTP proxy, first trying preferences then system proxy """
 
         # Looks like gst works only with http proxies.
-        if self.preferences['proxy_type'] == 'http' and self.preferences['proxy']:
+        if not self.preferences['enable_socks_proxy'] and self.preferences['proxy']:
             return self.preferences['proxy']
 
         system_proxies = urllib.request.getproxies()
