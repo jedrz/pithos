@@ -34,17 +34,23 @@ try:
 except ImportError:
     logging.info("Could not import python-pacparser.")
 
+socks_imported = False
+try:
+    import socks
+    socks_imported = True
+except ImportError:
+    pass
+
 config_home = GLib.get_user_config_dir()
 configfilename = os.path.join(config_home, 'pithos.ini')
 
 class PreferencesPithosDialog(Gtk.Dialog):
     __gtype_name__ = "PreferencesPithosDialog"
-    prefernces = {}
 
     def __init__(self):
         """__init__ - This function is typically not called directly.
         Creation of a PreferencesPithosDialog requires reading the associated ui
-        file and parsing the ui definition extrenally,
+        file and parsing the ui definition externally,
         and then calling PreferencesPithosDialog.finish_initializing().
 
         Use the convenience function NewPreferencesPithosDialog to create
@@ -94,6 +100,7 @@ class PreferencesPithosDialog(Gtk.Dialog):
             "proxy":'',
             "control_proxy":'',
             "control_proxy_pac":'',
+            "enable_socks_proxy": False,
             "show_icon": False,
             "lastfm_key": False,
             "enable_mediakeys":True,
@@ -126,6 +133,9 @@ class PreferencesPithosDialog(Gtk.Dialog):
 
         if not pacparser_imported and self.__preferences['control_proxy_pac'] != '':
             self.__preferences['control_proxy_pac'] = ''
+
+        if not socks_imported and self.__preferences['enable_socks_proxy']:
+            self.__preferences['enable_socks_proxy'] = False
 
         self.setup_fields()
 
@@ -196,6 +206,9 @@ class PreferencesPithosDialog(Gtk.Dialog):
         if not pacparser_imported:
             self.builder.get_object('prefs_control_proxy_pac').set_sensitive(False)
             self.builder.get_object('prefs_control_proxy_pac').set_tooltip_text("Please install python-pacparser")
+        if not socks_imported:
+            self.builder.get_object('checkbutton_socks_proxy').set_sensitive(False)
+            self.builder.get_object('checkbutton_socks_proxy').set_tooltip_text("Please install python-socks")
 
         audio_quality_combo = self.builder.get_object('prefs_audio_quality')
         for row in audio_quality_combo.get_model():
@@ -220,6 +233,7 @@ class PreferencesPithosDialog(Gtk.Dialog):
         self.__preferences["proxy"] = self.builder.get_object('prefs_proxy').get_text()
         self.__preferences["control_proxy"] = self.builder.get_object('prefs_control_proxy').get_text()
         self.__preferences["control_proxy_pac"] = self.builder.get_object('prefs_control_proxy_pac').get_text()
+        self.__preferences["enable_socks_proxy"] = self.builder.get_object('checkbutton_socks_proxy').get_active()
         self.__preferences["notify"] = self.builder.get_object('checkbutton_notify').get_active()
         self.__preferences["enable_screensaverpause"] = self.builder.get_object('checkbutton_screensaverpause').get_active()
         self.__preferences["show_icon"] = self.builder.get_object('checkbutton_icon').get_active()

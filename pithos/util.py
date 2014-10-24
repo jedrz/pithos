@@ -17,6 +17,9 @@
 import logging
 import webbrowser
 from urllib.parse import splittype, splituser, splitpasswd
+import urllib.request
+import http.client
+import ssl
 
 def parse_proxy(proxy):
     """ _parse_proxy from urllib """
@@ -41,6 +44,62 @@ def parse_proxy(proxy):
     else:
         user = password = None
     return scheme, user, password, hostport
+
+# based on https://github.com/Anorov/PySocks/blob/master/sockshandler.py
+class SocksiPyConnection(http.client.HTTPConnection):
+
+    def __init__(self, proxy_type=None, addr=None, port=None, rdns=True, username=None, password=None, *args, **kwargs):
+        self.proxy_args = (proxy_type, addr, port, rdns, username, password)
+        super().__init__(*args, **kwargs)
+
+    def connect(self):
+        import socks
+        self.sock = socks.socksocket()
+        self.sock.setproxy(*self.proxy_args)
+        if type(self.timeout) in (int, float):
+            self.sock.settimeout(self.timeout)
+        self.sock.connect((self.host, self.port))
+
+class SocksiPyConnectionS(http.client.HTTPSConnection):
+
+    def __init__(self, proxy_type=None, addr=None, port=None, rdns=True, username=None, password=None, *args, **kwargs):
+        self.proxy_args = (proxy_type, addr, port, rdns, username, password)
+        super().__init__(*args, **kwargs)
+
+    def connect(self):
+        import socks
+        sock = socks.socksocket()
+        sock.setproxy(*self.proxy_args)
+        if type(self.timeout) in (int, float):
+            sock.settimeout(self.timeout)
+        sock.connect((self.host, self.port))
+        self.sock = ssl.wrap_socket(sock, self.key_file, self.cert_file)
+
+class SocksiPyHandler(urllib.request.HTTPHandler, urllib.request.HTTPSHandler):
+
+    def __init__(self, proxy_type=None, addr=None, port=None, rdns=True, username=None, password=None, *args, **kwargs):
+        self.proxy_type = proxy_type
+        self.addr = addr
+        self.port = port
+        self.rdns = rdns
+        self.username = username
+        self.password = password
+        super().__init__(*args, **kwargs)
+
+    def http_open(self, req):
+        return self._do_open(req, SocksiPyConnection)
+
+    def https_open(self, req):
+        return self._do_open(req, SocksiPyConnectionS)
+
+    def _do_open(self, req, conn_class):
+        def build(*args, **kwargs):
+            conn = conn_class(
+                self.proxy_type, self.addr, self.port, self.rdns, self.username, self.password,
+                *args, **kwargs
+            )
+            return conn
+        return self.do_open(build, req)
 
 def open_browser(url):
     logging.info("Opening URL {}".format(url))
