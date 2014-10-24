@@ -82,8 +82,8 @@ class PreferencesPithosDialog(Gtk.Dialog):
         # initialize proxy type combo box
         proxy_type_combo = self.builder.get_object('prefs_proxy_type')
         proxy_type_store = Gtk.ListStore(GObject.TYPE_STRING, GObject.TYPE_STRING)
-        for x in [('http', "HTTP proxy"), ('socks', "SOCKS proxy")]:
-            proxy_type_store.append(x)
+        for proxy_type in [('http', "HTTP proxy"), ('socks', "SOCKS proxy")]:
+            proxy_type_store.append(proxy_type)
         proxy_type_combo.set_model(proxy_type_store)
         proxy_type_renderer = Gtk.CellRendererText()
         proxy_type_combo.pack_start(proxy_type_renderer, 1)
