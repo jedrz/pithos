@@ -206,6 +206,7 @@ class PreferencesPithosDialog(Gtk.Dialog):
         if not pacparser_imported:
             self.builder.get_object('prefs_control_proxy_pac').set_sensitive(False)
             self.builder.get_object('prefs_control_proxy_pac').set_tooltip_text("Please install python-pacparser")
+        self.builder.get_object('checkbutton_socks_proxy').set_active(self.__preferences["enable_socks_proxy"])
         if not socks_imported:
             self.builder.get_object('checkbutton_socks_proxy').set_sensitive(False)
             self.builder.get_object('checkbutton_socks_proxy').set_tooltip_text("Please install python-socks")
